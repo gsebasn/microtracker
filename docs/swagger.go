@@ -1,7 +1,5 @@
 package docs
 
-import "github.com/swaggo/swag"
-
 // @title Package Tracking API
 // @version 1.0
 // @description A microservice for tracking packages with MongoDB backend
@@ -12,6 +10,3 @@ import "github.com/swaggo/swag"
 // @contact.email support@example.com
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
-func SwaggerInfo() {
-	swag.Register(swag.Name, &swag.Spec{})
-}

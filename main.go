@@ -11,16 +11,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/snavarro/microtracker/config"
+	"github.com/snavarro/microtracker/docs"
 	"github.com/snavarro/microtracker/internal/handler"
 	"github.com/snavarro/microtracker/internal/repository/mongo"
 	"github.com/snavarro/microtracker/internal/service"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// @title Package Tracking API
-// @version 1.0
-// @description A microservice for tracking packages
-// @host localhost:8080
-// @BasePath /api/v1
+// @title           Package Tracking API
+// @version         1.0
+// @description     A microservice for tracking packages with MongoDB backend
+// @host            localhost:8080
+// @BasePath        /api/v1
+// @schemes         http
 func main() {
 	// Initialize configuration
 	cfg := config.NewConfig()
@@ -51,6 +55,17 @@ func main() {
 	// Add middleware for request logging
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+
+	// Swagger documentation setup
+	docs.SwaggerInfo.Title = "Package Tracking API"
+	docs.SwaggerInfo.Description = "A microservice for tracking packages with MongoDB backend"
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.Host = "localhost:8080"
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.Schemes = []string{"http"}
+
+	// Swagger UI endpoint
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API routes
 	api := router.Group("/api/v1")
