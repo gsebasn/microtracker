@@ -20,11 +20,20 @@ type response struct {
 	Success bool        `json:"success"`
 }
 
-type PackageHandler struct {
-	service *service.PackageService
+type PackageService interface {
+	GetPackage(id string) (*domain.Package, error)
+	ListPackages(page, size int) ([]domain.Package, int64, error)
+	SearchPackages(query string, page, size int) ([]domain.Package, int64, error)
+	CreatePackage(pkg *domain.Package) error
+	UpdatePackage(pkg *domain.Package) error
+	DeletePackage(id string) error
 }
 
-func NewPackageHandler(service *service.PackageService) *PackageHandler {
+type PackageHandler struct {
+	service PackageService
+}
+
+func NewPackageHandler(service PackageService) *PackageHandler {
 	return &PackageHandler{
 		service: service,
 	}

@@ -39,6 +39,7 @@ Thumbs.db
 # Environment files
 .env.*
 .env
+!config/env.template
 
 # Log files
 *.log

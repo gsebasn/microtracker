@@ -13,6 +13,7 @@ import (
 	"github.com/snavarro/microtracker/config"
 	"github.com/snavarro/microtracker/docs"
 	"github.com/snavarro/microtracker/internal/handler"
+	"github.com/snavarro/microtracker/internal/middleware"
 	"github.com/snavarro/microtracker/internal/repository/mongo"
 	"github.com/snavarro/microtracker/internal/service"
 	swaggerFiles "github.com/swaggo/files"
@@ -58,6 +59,10 @@ func main() {
 	// Add middleware for request logging
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+
+	// Add rate limiting middleware with configuration from env
+	rateLimiter := middleware.NewRateLimiter(&cfg.RateLimit)
+	router.Use(rateLimiter.RateLimit())
 
 	// Swagger documentation setup
 	docs.SwaggerInfo.Title = "Package Tracking API"

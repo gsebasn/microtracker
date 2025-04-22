@@ -138,6 +138,13 @@ func TestPackageService_CreatePackage(t *testing.T) {
 				Name:    "John Doe",
 				Address: "123 Main St",
 			},
+			Recipient: domain.Address{
+				Name:    "Jane Doe",
+				Address: "456 Oak St",
+			},
+			Origin:        "New York",
+			Destination:   "Los Angeles",
+			CurrentStatus: "created",
 		}
 
 		mockRepo.On("Create", pkg).Return(nil)
@@ -153,9 +160,72 @@ func TestPackageService_CreatePackage(t *testing.T) {
 			PackageID: "456",
 		}
 
-		mockRepo.On("Create", pkg).Return(errors.New("database error"))
-
 		err := service.CreatePackage(pkg)
+
+		assert.Error(t, err)
+		assert.Equal(t, "recipient name and address are required", err.Error())
+		mockRepo.AssertExpectations(t)
+	})
+}
+
+func TestPackageService_UpdatePackage(t *testing.T) {
+	mockRepo := new(MockPackageRepository)
+	service := NewPackageService(mockRepo)
+
+	t.Run("successful update", func(t *testing.T) {
+		pkg := &domain.Package{
+			PackageID: "123",
+			Sender: domain.Address{
+				Name:    "John Doe",
+				Address: "123 Main St",
+			},
+			Recipient: domain.Address{
+				Name:    "Jane Doe",
+				Address: "456 Oak St",
+			},
+			Origin:        "New York",
+			Destination:   "Los Angeles",
+			CurrentStatus: "updated",
+		}
+
+		mockRepo.On("Update", pkg).Return(nil)
+
+		err := service.UpdatePackage(pkg)
+
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("error case", func(t *testing.T) {
+		pkg := &domain.Package{
+			PackageID: "456",
+		}
+
+		err := service.UpdatePackage(pkg)
+
+		assert.Error(t, err)
+		assert.Equal(t, "recipient name and address are required", err.Error())
+		mockRepo.AssertExpectations(t)
+	})
+}
+
+func TestPackageService_DeletePackage(t *testing.T) {
+	mockRepo := new(MockPackageRepository)
+	service := NewPackageService(mockRepo)
+
+	t.Run("successful delete", func(t *testing.T) {
+		mockRepo.On("Delete", "123").Return(nil)
+
+		err := service.DeletePackage("123")
+
+		assert.NoError(t, err)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("error case", func(t *testing.T) {
+		mockRepo.On("Delete", "456").Return(errors.New("database error"))
+
+		err := service.DeletePackage("456")
 
 		assert.Error(t, err)
 		mockRepo.AssertExpectations(t)
