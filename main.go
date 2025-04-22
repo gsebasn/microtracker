@@ -27,7 +27,10 @@ import (
 // @schemes         http
 func main() {
 	// Initialize configuration
-	cfg := config.NewConfig()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	// Connect to MongoDB
 	db, err := config.ConnectDB(cfg)
