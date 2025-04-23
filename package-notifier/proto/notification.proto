@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "github.com/snavarro/microtracker/package-notifier/proto";
+
+// PackageStatus represents the current status of a package
+message PackageStatus {
+  string package_id = 1;
+  string status = 2;
+  string location = 3;
+  string timestamp = 4;
+  string description = 5;
+}
+
+// NotificationRequest is sent when a package status changes
+message NotificationRequest {
+  PackageStatus status = 1;
+  repeated string notification_channels = 2; // e.g., "email", "sms"
+}
+
+// NotificationResponse is the response to a notification request
+message NotificationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// NotificationService handles package status notifications
+service NotificationService {
+  // NotifyPackageStatus is called when a package status changes
+  rpc NotifyPackageStatus(NotificationRequest) returns (NotificationResponse) {}
+  
+  // GetNotificationHistory returns the history of notifications for a package
+  rpc GetNotificationHistory(GetHistoryRequest) returns (NotificationHistory) {}
+}
+
+message GetHistoryRequest {
+  string package_id = 1;
+}
+
+message NotificationHistory {
+  repeated PackageStatus statuses = 1;
+} 
