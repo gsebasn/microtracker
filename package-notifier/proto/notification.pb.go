@@ -7,6 +7,7 @@
 package proto
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -296,7 +297,7 @@ var File_proto_notification_proto protoreflect.FileDescriptor
 
 const file_proto_notification_proto_rawDesc = "" +
 	"\n" +
-	"\x18proto/notification.proto\x12\fnotification\"\xa2\x01\n" +
+	"\x18proto/notification.proto\x12\fnotification\x1a\x1cgoogle/api/annotations.proto\"\xa2\x01\n" +
 	"\rPackageStatus\x12\x1d\n" +
 	"\n" +
 	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x16\n" +
@@ -314,10 +315,10 @@ const file_proto_notification_proto_rawDesc = "" +
 	"\n" +
 	"package_id\x18\x01 \x01(\tR\tpackageId\"N\n" +
 	"\x13NotificationHistory\x127\n" +
-	"\bstatuses\x18\x01 \x03(\v2\x1b.notification.PackageStatusR\bstatuses2\xd5\x01\n" +
-	"\x13NotificationService\x12^\n" +
-	"\x13NotifyPackageStatus\x12!.notification.NotificationRequest\x1a\".notification.NotificationResponse\"\x00\x12^\n" +
-	"\x16GetNotificationHistory\x12\x1f.notification.GetHistoryRequest\x1a!.notification.NotificationHistory\"\x00B9Z7github.com/snavarro/microtracker/package-notifier/protob\x06proto3"
+	"\bstatuses\x18\x01 \x03(\v2\x1b.notification.PackageStatusR\bstatuses2\xa0\x02\n" +
+	"\x13NotificationService\x12z\n" +
+	"\x13NotifyPackageStatus\x12!.notification.NotificationRequest\x1a\".notification.NotificationResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/notifications\x12\x8c\x01\n" +
+	"\x16GetNotificationHistory\x12\x1f.notification.GetHistoryRequest\x1a!.notification.NotificationHistory\".\x82\xd3\xe4\x93\x02(\x12&/v1/notifications/{package_id}/historyB9Z7github.com/snavarro/microtracker/package-notifier/protob\x06proto3"
 
 var (
 	file_proto_notification_proto_rawDescOnce sync.Once

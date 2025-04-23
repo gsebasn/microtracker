@@ -4,6 +4,8 @@ package notification;
 
 option go_package = "github.com/snavarro/microtracker/package-notifier/proto";
 
+import "google/api/annotations.proto";
+
 // PackageStatus represents the current status of a package
 message PackageStatus {
   string package_id = 1;
@@ -28,10 +30,19 @@ message NotificationResponse {
 // NotificationService handles package status notifications
 service NotificationService {
   // NotifyPackageStatus is called when a package status changes
-  rpc NotifyPackageStatus(NotificationRequest) returns (NotificationResponse) {}
+  rpc NotifyPackageStatus(NotificationRequest) returns (NotificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications"
+      body: "*"
+    };
+  }
   
   // GetNotificationHistory returns the history of notifications for a package
-  rpc GetNotificationHistory(GetHistoryRequest) returns (NotificationHistory) {}
+  rpc GetNotificationHistory(GetHistoryRequest) returns (NotificationHistory) {
+    option (google.api.http) = {
+      get: "/v1/notifications/{package_id}/history"
+    };
+  }
 }
 
 message GetHistoryRequest {
