@@ -27,7 +27,7 @@
         button:hover, input[type="submit"]:hover {
             background-color: #ec7211;
         }
-        textarea, input[type="text"] {
+        textarea, input[type="text"], input[type="number"], select {
             width: 100%;
             padding: 8px;
             margin: 5px 0;
@@ -95,6 +95,28 @@
             background-color: #f0f0f0;
             border-radius: 3px;
         }
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .pagination button {
+            margin: 0 5px;
+        }
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .filters input, .filters select {
+            flex: 1;
+        }
+        .retention-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -115,6 +137,10 @@
                 <label for="topicName">Topic Name:</label>
                 <input type="text" id="topicName" required>
             </div>
+            <div>
+                <label for="retentionDays">Message Retention (days):</label>
+                <input type="number" id="retentionDays" min="1" max="365" value="7">
+            </div>
             <input type="submit" value="Create Topic">
         </form>
     </div>
@@ -129,6 +155,10 @@
             <label for="messageText">Message:</label>
             <textarea id="messageText" rows="4" required></textarea>
         </div>
+        <div>
+            <label for="messageAttributes">Message Attributes (JSON):</label>
+            <textarea id="messageAttributes" rows="2" placeholder='{"key": "value"}'></textarea>
+        </div>
         <button id="publishMessage">Publish Message</button>
     </div>
 
@@ -140,7 +170,25 @@
                 <option value="">Select a topic...</option>
             </select>
         </div>
+        <div class="filters">
+            <input type="text" id="searchFilter" placeholder="Search messages...">
+            <select id="timeFilter">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+            </select>
+            <select id="sortOrder">
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+            </select>
+        </div>
         <div class="message-list" id="messageList"></div>
+        <div class="pagination">
+            <button id="prevPage" disabled>Previous</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="nextPage" disabled>Next</button>
+        </div>
     </div>
     
     <script>
@@ -149,14 +197,41 @@
             region: 'us-east-1',
             endpoint: 'http://localhost:4566',
             accessKeyId: 'test',
-            secretAccessKey: 'test'
+            secretAccessKey: 'test',
+            s3ForcePathStyle: true,
+            sslEnabled: false,
+            logger: console,
+            httpOptions: {
+                xhrAsync: true,
+                timeout: 5000
+            }
         });
-        
-        // Create SNS service object
-        const sns = new AWS.SNS();
 
-        // Message store
-        const messageStore = new Map();
+        // Set up simple credentials
+        AWS.config.credentials = new AWS.Credentials('test', 'test');
+
+        // Create SNS and DynamoDB service objects with specific configurations
+        const sns = new AWS.SNS({
+            endpoint: 'http://localhost:4566',
+            credentials: AWS.config.credentials
+        });
+        const dynamodb = new AWS.DynamoDB.DocumentClient({
+            endpoint: 'http://localhost:4566',
+            credentials: AWS.config.credentials
+        });
+
+        // Constants
+        const MESSAGES_PER_PAGE = 10;
+        const MESSAGES_TABLE = 'sns-messages';
+        
+        // State
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentFilters = {
+            search: '',
+            timeRange: 'all',
+            sortOrder: 'desc'
+        };
         
         // Show message function
         function showMessage(text, type) {
@@ -170,18 +245,80 @@
                 messageEl.style.display = 'none';
             }, 5000);
         }
+
+        // Initialize DynamoDB table
+        async function initializeDynamoDB() {
+            const dynamodbService = new AWS.DynamoDB();
+            try {
+                await dynamodbService.createTable({
+                    TableName: MESSAGES_TABLE,
+                    KeySchema: [
+                        { AttributeName: 'topicArn', KeyType: 'HASH' },
+                        { AttributeName: 'messageId', KeyType: 'RANGE' }
+                    ],
+                    AttributeDefinitions: [
+                        { AttributeName: 'topicArn', AttributeType: 'S' },
+                        { AttributeName: 'messageId', AttributeType: 'S' },
+                        { AttributeName: 'timestamp', AttributeType: 'S' }
+                    ],
+                    GlobalSecondaryIndexes: [
+                        {
+                            IndexName: 'TimestampIndex',
+                            KeySchema: [
+                                { AttributeName: 'topicArn', KeyType: 'HASH' },
+                                { AttributeName: 'timestamp', KeyType: 'RANGE' }
+                            ],
+                            Projection: { ProjectionType: 'ALL' },
+                            ProvisionedThroughput: {
+                                ReadCapacityUnits: 5,
+                                WriteCapacityUnits: 5
+                            }
+                        }
+                    ],
+                    ProvisionedThroughput: {
+                        ReadCapacityUnits: 5,
+                        WriteCapacityUnits: 5
+                    }
+                }).promise();
+
+                // Enable TTL on the table
+                await dynamodbService.updateTimeToLive({
+                    TableName: MESSAGES_TABLE,
+                    TimeToLiveSpecification: {
+                        Enabled: true,
+                        AttributeName: 'ttl'
+                    }
+                }).promise();
+
+                showMessage('DynamoDB table created successfully with TTL enabled', 'success');
+            } catch (err) {
+                if (err.code !== 'ResourceInUseException') {
+                    console.error('Error creating DynamoDB table:', err);
+                    showMessage('Error creating DynamoDB table: ' + err.message, 'error');
+                }
+            }
+        }
         
         // Function to list all topics
         function listTopics() {
+            console.log('Attempting to list topics...');
             sns.listTopics({}, (err, data) => {
                 const topicsListEl = document.getElementById('topicsList');
                 const viewTopicSelect = document.getElementById('viewTopicArn');
                 
                 if (err) {
                     console.error("Error listing topics:", err);
+                    console.log("Error details:", {
+                        code: err.code,
+                        message: err.message,
+                        statusCode: err.statusCode,
+                        requestId: err.requestId
+                    });
                     showMessage('Error listing topics: ' + err.message, 'error');
                     return;
                 }
+                
+                console.log('Topics response:', data);
                 
                 if (!data.Topics || data.Topics.length === 0) {
                     topicsListEl.innerHTML = '<p>No topics found</p>';
@@ -237,13 +374,27 @@
         
         // Function to create a new topic
         function createTopic(topicName) {
-            sns.createTopic({ Name: topicName }, (err, data) => {
+            console.log('Attempting to create topic:', topicName);
+            const retentionDays = document.getElementById('retentionDays').value;
+            sns.createTopic({ 
+                Name: topicName,
+                Attributes: {
+                    'MessageRetentionPeriod': (retentionDays * 24 * 60 * 60).toString() // Convert days to seconds
+                }
+            }, (err, data) => {
                 if (err) {
                     console.error("Error creating topic:", err);
+                    console.log("Error details:", {
+                        code: err.code,
+                        message: err.message,
+                        statusCode: err.statusCode,
+                        requestId: err.requestId
+                    });
                     showMessage('Error creating topic: ' + err.message, 'error');
                     return;
                 }
                 
+                console.log('Topic created successfully:', data);
                 showMessage(`Topic "${topicName}" created successfully!`, 'success');
                 document.getElementById('topicName').value = '';
                 listTopics();
@@ -259,39 +410,90 @@
                     return;
                 }
                 
-                // Remove messages for this topic
-                messageStore.delete(topicArn);
-                updateMessageList(topicArn);
+                // Delete messages from DynamoDB
+                deleteMessagesForTopic(topicArn);
                 
                 showMessage('Topic deleted successfully!', 'success');
                 listTopics();
             });
         }
+
+        // Function to delete messages for a topic
+        async function deleteMessagesForTopic(topicArn) {
+            try {
+                const params = {
+                    TableName: MESSAGES_TABLE,
+                    KeyConditionExpression: 'topicArn = :arn',
+                    ExpressionAttributeValues: {
+                        ':arn': topicArn
+                    }
+                };
+
+                const data = await dynamodb.query(params).promise();
+                
+                for (const item of data.Items) {
+                    await dynamodb.delete({
+                        TableName: MESSAGES_TABLE,
+                        Key: {
+                            topicArn: item.topicArn,
+                            messageId: item.messageId
+                        }
+                    }).promise();
+                }
+            } catch (err) {
+                console.error('Error deleting messages:', err);
+            }
+        }
         
         // Function to publish a message
         function publishMessageToTopic(topicArn, message) {
+            let messageAttributes = {};
+            try {
+                const attributesText = document.getElementById('messageAttributes').value;
+                if (attributesText) {
+                    messageAttributes = JSON.parse(attributesText);
+                }
+            } catch (err) {
+                showMessage('Invalid message attributes JSON', 'error');
+                return;
+            }
+
             const params = {
                 Message: message,
-                TopicArn: topicArn
+                TopicArn: topicArn,
+                MessageAttributes: messageAttributes
             };
             
-            sns.publish(params, (err, data) => {
+            sns.publish(params, async (err, data) => {
                 if (err) {
                     console.error("Error publishing message:", err);
                     showMessage('Error publishing message: ' + err.message, 'error');
                     return;
                 }
                 
-                // Store the message
-                if (!messageStore.has(topicArn)) {
-                    messageStore.set(topicArn, []);
+                // Get topic retention period
+                try {
+                    const topicAttributes = await sns.getTopicAttributes({ TopicArn: topicArn }).promise();
+                    const retentionPeriod = parseInt(topicAttributes.Attributes.MessageRetentionPeriod) || (7 * 24 * 60 * 60); // Default to 7 days
+                    
+                    // Calculate TTL (current time + retention period)
+                    const ttl = Math.floor(Date.now() / 1000) + retentionPeriod;
+                    
+                    // Store message in DynamoDB
+                    await dynamodb.put({
+                        TableName: MESSAGES_TABLE,
+                        Item: {
+                            topicArn: topicArn,
+                            messageId: data.MessageId,
+                            message: message,
+                            attributes: messageAttributes,
+                            timestamp: new Date().toISOString(),
+                            ttl: ttl
+                        }
+                    }).promise();
+                } catch (err) {
+                    console.error('Error storing message:', err);
                 }
-                messageStore.get(topicArn).push({
-                    messageId: data.MessageId,
-                    message: message,
-                    timestamp: new Date().toISOString(),
-                    attributes: params.MessageAttributes || {}
-                });
                 
                 // Update message list if this topic is selected
                 if (document.getElementById('viewTopicArn').value === topicArn) {
@@ -300,44 +502,136 @@
                 
                 showMessage('Message published successfully!', 'success');
                 document.getElementById('messageText').value = '';
+                document.getElementById('messageAttributes').value = '';
             });
         }
 
         // Function to update message list
-        function updateMessageList(topicArn) {
+        async function updateMessageList(topicArn) {
+            console.log('Attempting to fetch messages for topic:', topicArn);
             const messageListEl = document.getElementById('messageList');
-            const messages = messageStore.get(topicArn) || [];
+            const searchFilter = document.getElementById('searchFilter').value;
+            const timeFilter = document.getElementById('timeFilter').value;
+            const sortOrder = document.getElementById('sortOrder').value;
             
-            if (messages.length === 0) {
-                messageListEl.innerHTML = '<p>No messages for this topic</p>';
-                return;
-            }
-            
-            let html = '';
-            messages.forEach(msg => {
-                html += `
-                    <div class="message-item">
-                        <div class="message-header">
-                            <span>Message ID: ${msg.messageId}</span>
-                            <span>${msg.timestamp}</span>
-                        </div>
-                        <div class="message-content">${msg.message}</div>
-                        ${Object.keys(msg.attributes).length > 0 ? `
-                            <div class="message-attributes">
-                                ${Object.entries(msg.attributes).map(([key, value]) => `
-                                    <span class="message-attribute">${key}: ${value.StringValue || value.DataType}</span>
-                                `).join('')}
+            try {
+                let params = {
+                    TableName: MESSAGES_TABLE,
+                    IndexName: 'TimestampIndex',
+                    KeyConditionExpression: 'topicArn = :arn',
+                    ExpressionAttributeValues: {
+                        ':arn': topicArn
+                    },
+                    ScanIndexForward: sortOrder === 'asc',
+                    Limit: MESSAGES_PER_PAGE
+                };
+
+                // Add time filter
+                if (timeFilter !== 'all') {
+                    const now = new Date();
+                    let startDate;
+                    switch (timeFilter) {
+                        case 'today':
+                            startDate = new Date(now.setHours(0, 0, 0, 0));
+                            break;
+                        case 'week':
+                            startDate = new Date(now.setDate(now.getDate() - 7));
+                            break;
+                        case 'month':
+                            startDate = new Date(now.setMonth(now.getMonth() - 1));
+                            break;
+                    }
+                    params.KeyConditionExpression += ' AND timestamp >= :startDate';
+                    params.ExpressionAttributeValues[':startDate'] = startDate.toISOString();
+                }
+
+                // Add search filter
+                if (searchFilter) {
+                    params.FilterExpression = 'contains(message, :search)';
+                    params.ExpressionAttributeValues[':search'] = searchFilter;
+                }
+
+                // Add pagination
+                if (currentPage > 1) {
+                    const lastEvaluatedKey = await getLastEvaluatedKey(topicArn, currentPage - 1);
+                    if (lastEvaluatedKey) {
+                        params.ExclusiveStartKey = lastEvaluatedKey;
+                    }
+                }
+
+                const data = await dynamodb.query(params).promise();
+                
+                // Update pagination info
+                totalPages = Math.ceil(data.Count / MESSAGES_PER_PAGE);
+                document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+                document.getElementById('prevPage').disabled = currentPage === 1;
+                document.getElementById('nextPage').disabled = currentPage === totalPages;
+                
+                if (data.Items.length === 0) {
+                    messageListEl.innerHTML = '<p>No messages found</p>';
+                    return;
+                }
+                
+                let html = '';
+                data.Items.forEach(msg => {
+                    html += `
+                        <div class="message-item">
+                            <div class="message-header">
+                                <span>Message ID: ${msg.messageId}</span>
+                                <span>${msg.timestamp}</span>
                             </div>
-                        ` : ''}
-                    </div>
-                `;
-            });
-            
-            messageListEl.innerHTML = html;
+                            <div class="message-content">${msg.message}</div>
+                            ${Object.keys(msg.attributes || {}).length > 0 ? `
+                                <div class="message-attributes">
+                                    ${Object.entries(msg.attributes).map(([key, value]) => `
+                                        <span class="message-attribute">${key}: ${value.StringValue || value.DataType}</span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                messageListEl.innerHTML = html;
+            } catch (err) {
+                console.error('Error fetching messages:', err);
+                console.log("Error details:", {
+                    code: err.code,
+                    message: err.message,
+                    statusCode: err.statusCode,
+                    requestId: err.requestId
+                });
+                showMessage('Error fetching messages: ' + err.message, 'error');
+            }
+        }
+
+        // Helper function to get last evaluated key for pagination
+        async function getLastEvaluatedKey(topicArn, page) {
+            const params = {
+                TableName: MESSAGES_TABLE,
+                IndexName: 'TimestampIndex',
+                KeyConditionExpression: 'topicArn = :arn',
+                ExpressionAttributeValues: {
+                    ':arn': topicArn
+                },
+                ScanIndexForward: currentFilters.sortOrder === 'asc',
+                Limit: (page - 1) * MESSAGES_PER_PAGE
+            };
+
+            try {
+                const data = await dynamodb.query(params).promise();
+                return data.LastEvaluatedKey;
+            } catch (err) {
+                console.error('Error getting last evaluated key:', err);
+                return null;
+            }
         }
         
         // Initialize event listeners
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize DynamoDB
+            await initializeDynamoDB();
+            
             // Initial topic load
             listTopics();
             
@@ -374,11 +668,46 @@
             // View topic messages
             document.getElementById('viewTopicArn').addEventListener('change', (e) => {
                 const topicArn = e.target.value;
+                currentPage = 1;
                 if (topicArn) {
                     updateMessageList(topicArn);
                 } else {
                     document.getElementById('messageList').innerHTML = '<p>Select a topic to view messages</p>';
                 }
+            });
+
+            // Pagination buttons
+            document.getElementById('prevPage').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateMessageList(document.getElementById('viewTopicArn').value);
+                }
+            });
+
+            document.getElementById('nextPage').addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateMessageList(document.getElementById('viewTopicArn').value);
+                }
+            });
+
+            // Filter changes
+            document.getElementById('searchFilter').addEventListener('input', (e) => {
+                currentFilters.search = e.target.value;
+                currentPage = 1;
+                updateMessageList(document.getElementById('viewTopicArn').value);
+            });
+
+            document.getElementById('timeFilter').addEventListener('change', (e) => {
+                currentFilters.timeRange = e.target.value;
+                currentPage = 1;
+                updateMessageList(document.getElementById('viewTopicArn').value);
+            });
+
+            document.getElementById('sortOrder').addEventListener('change', (e) => {
+                currentFilters.sortOrder = e.target.value;
+                currentPage = 1;
+                updateMessageList(document.getElementById('viewTopicArn').value);
             });
         });
     </script>
