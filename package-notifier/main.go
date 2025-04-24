@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -9,6 +11,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	pb "github.com/snavarro/microtracker/package-notifier/proto"
@@ -18,22 +23,127 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// NotificationHandler defines the interface for different notification channels
+type NotificationHandler interface {
+	Send(ctx context.Context, status *pb.PackageStatus, config map[string]string) error
+}
+
+// EmailNotificationHandler handles email notifications
+type EmailNotificationHandler struct{}
+
+func (h *EmailNotificationHandler) Send(ctx context.Context, status *pb.PackageStatus, config map[string]string) error {
+	// TODO: Implement email sending logic
+	log.Printf("Sending email notification for package %s to %s", status.PackageId, config["recipient"])
+	return nil
+}
+
+// SMSNotificationHandler handles SMS notifications
+type SMSNotificationHandler struct{}
+
+func (h *SMSNotificationHandler) Send(ctx context.Context, status *pb.PackageStatus, config map[string]string) error {
+	// TODO: Implement SMS sending logic
+	log.Printf("Sending SMS notification for package %s to %s", status.PackageId, config["phone"])
+	return nil
+}
+
+// QueueNotificationHandler handles queue notifications
+type QueueNotificationHandler struct{}
+
+func (h *QueueNotificationHandler) Send(ctx context.Context, status *pb.PackageStatus, config map[string]string) error {
+	// TODO: Implement queue publishing logic
+	log.Printf("Publishing notification for package %s to queue %s", status.PackageId, config["queue"])
+	return nil
+}
+
+// LogNotificationHandler handles log notifications
+type LogNotificationHandler struct{}
+
+func (h *LogNotificationHandler) Send(ctx context.Context, status *pb.PackageStatus, config map[string]string) error {
+	log.Printf("Logging notification for package %s: %s", status.PackageId, status.Status)
+	return nil
+}
+
 type notificationServer struct {
 	pb.UnimplementedNotificationServiceServer
+	snsClient *sns.Client
+	topicArn  string
+}
+
+func newNotificationServer() (*notificationServer, error) {
+	// Load AWS configuration
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("unable to load AWS SDK config: %v", err)
+	}
+
+	// Create SNS client
+	snsClient := sns.NewFromConfig(cfg)
+
+	// Get topic ARN from environment variable
+	topicArn := os.Getenv("AWS_SNS_TOPIC_ARN")
+	if topicArn == "" {
+		return nil, fmt.Errorf("AWS_SNS_TOPIC_ARN environment variable is required")
+	}
+
+	return &notificationServer{
+		snsClient: snsClient,
+		topicArn:  topicArn,
+	}, nil
 }
 
 func (s *notificationServer) NotifyPackageStatus(ctx context.Context, req *pb.NotificationRequest) (*pb.NotificationResponse, error) {
 	log.Printf("Received notification for package %s: %s", req.Status.PackageId, req.Status.Status)
 
-	// Here you would implement actual notification logic
-	// For now, we'll just log the notification
-	for _, channel := range req.NotificationChannels {
-		log.Printf("Sending notification via %s", channel)
+	// Create notification message
+	message := struct {
+		PackageStatus *pb.PackageStatus         `json:"package_status"`
+		Channels      []*pb.NotificationChannel `json:"channels"`
+		TemplateID    string                    `json:"template_id,omitempty"`
+		Metadata      map[string]string         `json:"metadata,omitempty"`
+	}{
+		PackageStatus: req.Status,
+		Channels:      req.Channels,
+		TemplateID:    req.TemplateId,
+		Metadata:      req.Metadata,
+	}
+
+	// Convert message to JSON
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal notification message: %v", err)
+	}
+
+	// Publish message to SNS topic
+	input := &sns.PublishInput{
+		TopicArn: aws.String(s.topicArn),
+		Message:  aws.String(string(messageBytes)),
+		MessageAttributes: map[string]sns.MessageAttributeValue{
+			"package_id": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String(req.Status.PackageId),
+			},
+			"status": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String(req.Status.Status),
+			},
+		},
+	}
+
+	result, err := s.snsClient.Publish(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish notification: %v", err)
 	}
 
 	return &pb.NotificationResponse{
 		Success: true,
-		Message: "Notification sent successfully",
+		Message: "Notification published successfully",
+		Results: []*pb.NotificationResult{
+			{
+				ChannelType: "sns",
+				Success:     true,
+				Message:     fmt.Sprintf("Message published with ID: %s", *result.MessageId),
+			},
+		},
 	}, nil
 }
 
@@ -65,9 +175,15 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	// Create notification server
+	server, err := newNotificationServer()
+	if err != nil {
+		log.Fatalf("failed to create notification server: %v", err)
+	}
+
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
-	pb.RegisterNotificationServiceServer(grpcServer, &notificationServer{})
+	pb.RegisterNotificationServiceServer(grpcServer, server)
 
 	// Start gRPC server in a goroutine
 	go func() {

@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: localstack-sns
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=sns
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - HOSTNAME_EXTERNAL=localstack
+      - DISABLE_CORS_CHECKS=1
+      - ALLOW_CORS_ORIGIN=*
+    ports:
+      - "4566:4566"  # LocalStack main endpoint
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

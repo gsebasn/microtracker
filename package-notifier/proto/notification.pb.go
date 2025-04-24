@@ -99,18 +99,73 @@ func (x *PackageStatus) GetDescription() string {
 	return ""
 }
 
+// NotificationChannel represents a specific notification channel configuration
+type NotificationChannel struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`                                                                               // e.g., "email", "sms", "queue", "log"
+	Config        map[string]string      `protobuf:"bytes,2,rep,name=config,proto3" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Channel-specific configuration
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotificationChannel) Reset() {
+	*x = NotificationChannel{}
+	mi := &file_proto_notification_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationChannel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationChannel) ProtoMessage() {}
+
+func (x *NotificationChannel) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_notification_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationChannel.ProtoReflect.Descriptor instead.
+func (*NotificationChannel) Descriptor() ([]byte, []int) {
+	return file_proto_notification_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *NotificationChannel) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *NotificationChannel) GetConfig() map[string]string {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 // NotificationRequest is sent when a package status changes
 type NotificationRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Status               *PackageStatus         `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	NotificationChannels []string               `protobuf:"bytes,2,rep,name=notification_channels,json=notificationChannels,proto3" json:"notification_channels,omitempty"` // e.g., "email", "sms"
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        *PackageStatus         `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Channels      []*NotificationChannel `protobuf:"bytes,2,rep,name=channels,proto3" json:"channels,omitempty"`
+	TemplateId    string                 `protobuf:"bytes,3,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`                                                     // Optional template ID for formatting the notification
+	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Additional metadata for the notification
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationRequest) Reset() {
 	*x = NotificationRequest{}
-	mi := &file_proto_notification_proto_msgTypes[1]
+	mi := &file_proto_notification_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +177,7 @@ func (x *NotificationRequest) String() string {
 func (*NotificationRequest) ProtoMessage() {}
 
 func (x *NotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_proto_msgTypes[1]
+	mi := &file_proto_notification_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +190,7 @@ func (x *NotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationRequest.ProtoReflect.Descriptor instead.
 func (*NotificationRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notification_proto_rawDescGZIP(), []int{1}
+	return file_proto_notification_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *NotificationRequest) GetStatus() *PackageStatus {
@@ -145,9 +200,23 @@ func (x *NotificationRequest) GetStatus() *PackageStatus {
 	return nil
 }
 
-func (x *NotificationRequest) GetNotificationChannels() []string {
+func (x *NotificationRequest) GetChannels() []*NotificationChannel {
 	if x != nil {
-		return x.NotificationChannels
+		return x.Channels
+	}
+	return nil
+}
+
+func (x *NotificationRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+func (x *NotificationRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
 	}
 	return nil
 }
@@ -157,13 +226,14 @@ type NotificationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Results       []*NotificationResult  `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationResponse) Reset() {
 	*x = NotificationResponse{}
-	mi := &file_proto_notification_proto_msgTypes[2]
+	mi := &file_proto_notification_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -175,7 +245,7 @@ func (x *NotificationResponse) String() string {
 func (*NotificationResponse) ProtoMessage() {}
 
 func (x *NotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_proto_msgTypes[2]
+	mi := &file_proto_notification_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -188,7 +258,7 @@ func (x *NotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationResponse.ProtoReflect.Descriptor instead.
 func (*NotificationResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notification_proto_rawDescGZIP(), []int{2}
+	return file_proto_notification_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *NotificationResponse) GetSuccess() bool {
@@ -205,6 +275,82 @@ func (x *NotificationResponse) GetMessage() string {
 	return ""
 }
 
+func (x *NotificationResponse) GetResults() []*NotificationResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+// NotificationResult represents the result of sending a notification to a specific channel
+type NotificationResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChannelType   string                 `protobuf:"bytes,1,opt,name=channel_type,json=channelType,proto3" json:"channel_type,omitempty"`
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotificationResult) Reset() {
+	*x = NotificationResult{}
+	mi := &file_proto_notification_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationResult) ProtoMessage() {}
+
+func (x *NotificationResult) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_notification_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationResult.ProtoReflect.Descriptor instead.
+func (*NotificationResult) Descriptor() ([]byte, []int) {
+	return file_proto_notification_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NotificationResult) GetChannelType() string {
+	if x != nil {
+		return x.ChannelType
+	}
+	return ""
+}
+
+func (x *NotificationResult) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *NotificationResult) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *NotificationResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type GetHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
@@ -214,7 +360,7 @@ type GetHistoryRequest struct {
 
 func (x *GetHistoryRequest) Reset() {
 	*x = GetHistoryRequest{}
-	mi := &file_proto_notification_proto_msgTypes[3]
+	mi := &file_proto_notification_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -226,7 +372,7 @@ func (x *GetHistoryRequest) String() string {
 func (*GetHistoryRequest) ProtoMessage() {}
 
 func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_proto_msgTypes[3]
+	mi := &file_proto_notification_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -239,7 +385,7 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notification_proto_rawDescGZIP(), []int{3}
+	return file_proto_notification_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetHistoryRequest) GetPackageId() string {
@@ -258,7 +404,7 @@ type NotificationHistory struct {
 
 func (x *NotificationHistory) Reset() {
 	*x = NotificationHistory{}
-	mi := &file_proto_notification_proto_msgTypes[4]
+	mi := &file_proto_notification_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +416,7 @@ func (x *NotificationHistory) String() string {
 func (*NotificationHistory) ProtoMessage() {}
 
 func (x *NotificationHistory) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notification_proto_msgTypes[4]
+	mi := &file_proto_notification_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +429,7 @@ func (x *NotificationHistory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationHistory.ProtoReflect.Descriptor instead.
 func (*NotificationHistory) Descriptor() ([]byte, []int) {
-	return file_proto_notification_proto_rawDescGZIP(), []int{4}
+	return file_proto_notification_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *NotificationHistory) GetStatuses() []*PackageStatus {
@@ -304,13 +450,31 @@ const file_proto_notification_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n" +
 	"\blocation\x18\x03 \x01(\tR\blocation\x12\x1c\n" +
 	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\x12 \n" +
-	"\vdescription\x18\x05 \x01(\tR\vdescription\"\x7f\n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\"\xab\x01\n" +
+	"\x13NotificationChannel\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12E\n" +
+	"\x06config\x18\x02 \x03(\v2-.notification.NotificationChannel.ConfigEntryR\x06config\x1a9\n" +
+	"\vConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb4\x02\n" +
 	"\x13NotificationRequest\x123\n" +
-	"\x06status\x18\x01 \x01(\v2\x1b.notification.PackageStatusR\x06status\x123\n" +
-	"\x15notification_channels\x18\x02 \x03(\tR\x14notificationChannels\"J\n" +
+	"\x06status\x18\x01 \x01(\v2\x1b.notification.PackageStatusR\x06status\x12=\n" +
+	"\bchannels\x18\x02 \x03(\v2!.notification.NotificationChannelR\bchannels\x12\x1f\n" +
+	"\vtemplate_id\x18\x03 \x01(\tR\n" +
+	"templateId\x12K\n" +
+	"\bmetadata\x18\x04 \x03(\v2/.notification.NotificationRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x01\n" +
 	"\x14NotificationResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"2\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12:\n" +
+	"\aresults\x18\x03 \x03(\v2 .notification.NotificationResultR\aresults\"\x81\x01\n" +
+	"\x12NotificationResult\x12!\n" +
+	"\fchannel_type\x18\x01 \x01(\tR\vchannelType\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"2\n" +
 	"\x11GetHistoryRequest\x12\x1d\n" +
 	"\n" +
 	"package_id\x18\x01 \x01(\tR\tpackageId\"N\n" +
@@ -332,26 +496,34 @@ func file_proto_notification_proto_rawDescGZIP() []byte {
 	return file_proto_notification_proto_rawDescData
 }
 
-var file_proto_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_notification_proto_goTypes = []any{
 	(*PackageStatus)(nil),        // 0: notification.PackageStatus
-	(*NotificationRequest)(nil),  // 1: notification.NotificationRequest
-	(*NotificationResponse)(nil), // 2: notification.NotificationResponse
-	(*GetHistoryRequest)(nil),    // 3: notification.GetHistoryRequest
-	(*NotificationHistory)(nil),  // 4: notification.NotificationHistory
+	(*NotificationChannel)(nil),  // 1: notification.NotificationChannel
+	(*NotificationRequest)(nil),  // 2: notification.NotificationRequest
+	(*NotificationResponse)(nil), // 3: notification.NotificationResponse
+	(*NotificationResult)(nil),   // 4: notification.NotificationResult
+	(*GetHistoryRequest)(nil),    // 5: notification.GetHistoryRequest
+	(*NotificationHistory)(nil),  // 6: notification.NotificationHistory
+	nil,                          // 7: notification.NotificationChannel.ConfigEntry
+	nil,                          // 8: notification.NotificationRequest.MetadataEntry
 }
 var file_proto_notification_proto_depIdxs = []int32{
-	0, // 0: notification.NotificationRequest.status:type_name -> notification.PackageStatus
-	0, // 1: notification.NotificationHistory.statuses:type_name -> notification.PackageStatus
-	1, // 2: notification.NotificationService.NotifyPackageStatus:input_type -> notification.NotificationRequest
-	3, // 3: notification.NotificationService.GetNotificationHistory:input_type -> notification.GetHistoryRequest
-	2, // 4: notification.NotificationService.NotifyPackageStatus:output_type -> notification.NotificationResponse
-	4, // 5: notification.NotificationService.GetNotificationHistory:output_type -> notification.NotificationHistory
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	7, // 0: notification.NotificationChannel.config:type_name -> notification.NotificationChannel.ConfigEntry
+	0, // 1: notification.NotificationRequest.status:type_name -> notification.PackageStatus
+	1, // 2: notification.NotificationRequest.channels:type_name -> notification.NotificationChannel
+	8, // 3: notification.NotificationRequest.metadata:type_name -> notification.NotificationRequest.MetadataEntry
+	4, // 4: notification.NotificationResponse.results:type_name -> notification.NotificationResult
+	0, // 5: notification.NotificationHistory.statuses:type_name -> notification.PackageStatus
+	2, // 6: notification.NotificationService.NotifyPackageStatus:input_type -> notification.NotificationRequest
+	5, // 7: notification.NotificationService.GetNotificationHistory:input_type -> notification.GetHistoryRequest
+	3, // 8: notification.NotificationService.NotifyPackageStatus:output_type -> notification.NotificationResponse
+	6, // 9: notification.NotificationService.GetNotificationHistory:output_type -> notification.NotificationHistory
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_proto_notification_proto_init() }
@@ -365,7 +537,7 @@ func file_proto_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_notification_proto_rawDesc), len(file_proto_notification_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -15,16 +15,33 @@ message PackageStatus {
   string description = 5;
 }
 
+// NotificationChannel represents a specific notification channel configuration
+message NotificationChannel {
+  string type = 1;  // e.g., "email", "sms", "queue", "log"
+  map<string, string> config = 2;  // Channel-specific configuration
+}
+
 // NotificationRequest is sent when a package status changes
 message NotificationRequest {
   PackageStatus status = 1;
-  repeated string notification_channels = 2; // e.g., "email", "sms"
+  repeated NotificationChannel channels = 2;
+  string template_id = 3;  // Optional template ID for formatting the notification
+  map<string, string> metadata = 4;  // Additional metadata for the notification
 }
 
 // NotificationResponse is the response to a notification request
 message NotificationResponse {
   bool success = 1;
   string message = 2;
+  repeated NotificationResult results = 3;
+}
+
+// NotificationResult represents the result of sending a notification to a specific channel
+message NotificationResult {
+  string channel_type = 1;
+  bool success = 2;
+  string message = 3;
+  string error = 4;
 }
 
 // NotificationService handles package status notifications
