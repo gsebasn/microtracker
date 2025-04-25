@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	pb "github.com/snavarro/microtracker/package-notifier/proto"
@@ -117,7 +118,7 @@ func (s *notificationServer) NotifyPackageStatus(ctx context.Context, req *pb.No
 	input := &sns.PublishInput{
 		TopicArn: aws.String(s.topicArn),
 		Message:  aws.String(string(messageBytes)),
-		MessageAttributes: map[string]sns.MessageAttributeValue{
+		MessageAttributes: map[string]types.MessageAttributeValue{
 			"package_id": {
 				DataType:    aws.String("String"),
 				StringValue: aws.String(req.Status.PackageId),

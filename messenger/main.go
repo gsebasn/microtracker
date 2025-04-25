@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Message represents the structure of an SNS message
@@ -25,10 +27,26 @@ type Message struct {
 	UnsubscribeURL   string `json:"UnsubscribeURL"`
 }
 
+var logger *zap.Logger
+
+func init() {
+	// Configure Zap logger
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.TimeKey = "timestamp"
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+
+	var err error
+	logger, err = config.Build()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
+}
+
 func main() {
 	// Set up logging
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Println("Starting messenger service...")
+	logger.Info("Starting messenger service...")
 
 	// Create Gin router
 	router := gin.Default()
@@ -53,9 +71,9 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Server starting on port %s", port)
+		logger.Info("Server starting", zap.String("port", port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
 
@@ -64,20 +82,24 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 }
 
 // handleSNSWebhook handles incoming SNS notifications
 func handleSNSWebhook(c *gin.Context) {
 	var message Message
 	if err := c.ShouldBindJSON(&message); err != nil {
-		log.Printf("Error binding JSON: %v", err)
+		logger.Error("Error binding JSON", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
 	// Log the received message
-	log.Printf("Received message: %+v", message)
+	logger.Info("Received message",
+		zap.String("message_id", message.MessageId),
+		zap.String("topic_arn", message.TopicArn),
+		zap.String("type", message.Type),
+	)
 
 	// Handle different message types
 	switch message.Type {
@@ -86,26 +108,33 @@ func handleSNSWebhook(c *gin.Context) {
 	case "Notification":
 		handleNotification(c, message)
 	default:
-		log.Printf("Unknown message type: %s", message.Type)
+		logger.Warn("Unknown message type", zap.String("type", message.Type))
 		c.JSON(http.StatusOK, gin.H{"status": "unknown_message_type"})
 	}
 }
 
 // handleSubscriptionConfirmation handles SNS subscription confirmation requests
 func handleSubscriptionConfirmation(c *gin.Context, message Message) {
-	log.Printf("Handling subscription confirmation for topic: %s", message.TopicArn)
+	logger.Info("Handling subscription confirmation",
+		zap.String("topic_arn", message.TopicArn),
+	)
 	// TODO: Implement subscription confirmation logic
 	c.JSON(http.StatusOK, gin.H{"status": "subscription_confirming"})
 }
 
 // handleNotification processes regular SNS notifications
 func handleNotification(c *gin.Context, message Message) {
-	log.Printf("Processing notification from topic: %s", message.TopicArn)
+	logger.Info("Processing notification",
+		zap.String("topic_arn", message.TopicArn),
+	)
 
 	// Parse the message content
 	var content map[string]interface{}
 	if err := json.Unmarshal([]byte(message.Message), &content); err != nil {
-		log.Printf("Error parsing message content: %v", err)
+		logger.Error("Error parsing message content",
+			zap.Error(err),
+			zap.String("message_id", message.MessageId),
+		)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message content"})
 		return
 	}
@@ -117,6 +146,10 @@ func handleNotification(c *gin.Context, message Message) {
 	// 3. Store the message
 	// 4. Send acknowledgments
 
+	logger.Info("Message processed successfully",
+		zap.String("message_id", message.MessageId),
+		zap.String("topic_arn", message.TopicArn),
+	)
 	c.JSON(http.StatusOK, gin.H{"status": "message_received"})
 }
 
