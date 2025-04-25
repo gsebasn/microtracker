@@ -41,7 +41,8 @@ func LoadEnv() error {
 
 	// Check if the environment file exists
 	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		return fmt.Errorf("environment file %s not found", envFile)
+		log.Printf("Environment file %s not found, using environment variables", envFile)
+		return nil
 	}
 
 	// Load the environment file
@@ -53,10 +54,8 @@ func LoadEnv() error {
 }
 
 func NewConfig() (*Config, error) {
-	// Load environment file
-	if err := LoadEnv(); err != nil {
-		return nil, fmt.Errorf("failed to load environment: %v", err)
-	}
+	// Load environment file (optional)
+	_ = LoadEnv()
 
 	// Parse default rate limit configuration
 	defaultRequestsPerMinute, _ := strconv.Atoi(getEnv("RATE_LIMIT_REQUESTS_PER_MINUTE", "100"))
@@ -91,7 +90,7 @@ func NewConfig() (*Config, error) {
 		Environment:   getEnv("APP_ENV", "development"),
 		MongoURI:      getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		DatabaseName:  getEnv("DATABASE_NAME", "tracker"),
-		ServerAddress: getEnv("SERVER_ADDRESS", ":8080"),
+		ServerAddress: getEnv("SERVER_ADDRESS", ":9090"),
 		RateLimit: RateLimitConfig{
 			Default: EndpointRateLimit{
 				RequestsPerMinute: defaultRequestsPerMinute,

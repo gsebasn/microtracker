@@ -23,7 +23,7 @@ import (
 // @title           Package Tracking API
 // @version         1.0
 // @description     A microservice for tracking packages with MongoDB backend
-// @host            localhost:8080
+// @host            localhost:9090
 // @BasePath        /api/v1
 // @schemes         http
 func main() {
@@ -68,12 +68,14 @@ func main() {
 	docs.SwaggerInfo.Title = "Package Tracking API"
 	docs.SwaggerInfo.Description = "A microservice for tracking packages with MongoDB backend"
 	docs.SwaggerInfo.Version = "1.0"
-	docs.SwaggerInfo.Host = "localhost:8080"
+	docs.SwaggerInfo.Host = "localhost:9090"
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	// Swagger UI endpoint
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL("/swagger/doc.json"),
+		ginSwagger.DefaultModelsExpandDepth(-1)))
 
 	// API routes
 	api := router.Group("/api/v1")

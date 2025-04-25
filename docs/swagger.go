@@ -1,9 +1,9 @@
 package docs
 
-// @title Package Tracking API
+// @title MicroTracker API
 // @version 1.0
-// @description A microservice for tracking packages with MongoDB backend
-// @host localhost:8080
+// @description API for tracking and managing microservices dependencies
+// @host localhost:9090
 // @BasePath /api/v1
 // @schemes http
 // @contact.name API Support

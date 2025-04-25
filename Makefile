@@ -55,15 +55,7 @@ docker-build:
 
 docker-run:
 	@echo "Running Docker container..."
-	@docker run -p 8080:8080 --env-file .env.development microtracker
-
-docker-compose-up:
-	@echo "Starting services with Docker Compose..."
-	@docker-compose up -d
-
-docker-compose-down:
-	@echo "Stopping services with Docker Compose..."
-	@docker-compose down
+	@docker run -p 9090:9090 --env-file .env.development --network host microtracker
 
 # Database
 db-start:
@@ -127,8 +119,6 @@ help:
 	@echo "  make clean            - Clean build artifacts"
 	@echo "  make docker-build     - Build Docker image"
 	@echo "  make docker-run       - Run Docker container"
-	@echo "  make docker-compose-up - Start services with Docker Compose"
-	@echo "  make docker-compose-down - Stop services with Docker Compose"
 	@echo "  make db-start         - Start MongoDB container"
 	@echo "  make db-stop          - Stop MongoDB container"
 	@echo "  make db-shell         - Connect to MongoDB shell"
